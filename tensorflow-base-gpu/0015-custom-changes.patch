@@ -1,0 +1,157 @@
+diff --git a/tensorflow/core/kernels/cuda_solvers.cc b/tensorflow/core/kernels/cuda_solvers.cc
+index a59baaa..eaeb9bf 100644
+--- a/tensorflow/core/kernels/cuda_solvers.cc
++++ b/tensorflow/core/kernels/cuda_solvers.cc
+@@ -21,7 +21,7 @@
+ #include <unordered_map>
+ #include <vector>
+ 
+-#include "cuda/include/cublas_v2.h"
++#include "/usr/include/cublas_v2.h"
+ #include "cuda/include/cusolverDn.h"
+ #include "tensorflow/core/common_runtime/gpu/gpu_event_mgr.h"
+ #include "tensorflow/core/framework/op_kernel.h"
+diff --git a/tensorflow/core/kernels/cuda_solvers.h b/tensorflow/core/kernels/cuda_solvers.h
+index 2c30d03..ee3f2be 100644
+--- a/tensorflow/core/kernels/cuda_solvers.h
++++ b/tensorflow/core/kernels/cuda_solvers.h
+@@ -26,7 +26,7 @@ limitations under the License.
+ #include <functional>
+ #include <vector>
+ 
+-#include "cuda/include/cublas_v2.h"
++#include "/usr/include/cublas_v2.h"
+ #include "cuda/include/cusolverDn.h"
+ #include "tensorflow/core/framework/op_kernel.h"
+ #include "tensorflow/core/framework/tensor.h"
+diff --git a/tensorflow/stream_executor/cuda/cuda_blas.cc b/tensorflow/stream_executor/cuda/cuda_blas.cc
+index 957f6c9..699e38f 100644
+--- a/tensorflow/stream_executor/cuda/cuda_blas.cc
++++ b/tensorflow/stream_executor/cuda/cuda_blas.cc
+@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
+ limitations under the License.
+ ==============================================================================*/
+ 
+-#include "cuda/include/cublas_v2.h"
++#include "/usr/include/cublas_v2.h"
+ #include "cuda/include/cuda.h"
+ 
+ #define SE_CUDA_DATA_HALF CUDA_R_16F
+diff --git a/third_party/gpus/cuda_configure.bzl b/third_party/gpus/cuda_configure.bzl
+index 8aa5b89..f7a7a7c 100644
+--- a/third_party/gpus/cuda_configure.bzl
++++ b/third_party/gpus/cuda_configure.bzl
+@@ -79,6 +79,16 @@ CUPTI_LIB_PATHS = [
+     "lib/",
+ ]
+ 
++CUBLAS_LIB_PATHS = [
++    "extras/CUPTI/lib64/",
++    "lib/powerpc64le-linux-gnu/",
++    "lib/x86_64-linux-gnu/",
++    "/usr/lib64/",
++    "extras/CUPTI/libx64/",
++    "extras/CUPTI/lib/",
++    "lib/",
++]
++
+ # Lookup paths for CUDA headers (cuda.h) relative to the CUDA toolkit directory.
+ CUDA_INCLUDE_PATHS = [
+     "include/",
+@@ -803,6 +813,37 @@ def _find_cupti_lib(repository_ctx, cuda_config):
+ 
+   auto_configure_fail("Cannot find cupti library %s" % file_name)
+ 
++def _find_cublas_lib(repository_ctx, cuda_config):
++    """Finds the cublas library on the system.
++
++    On most systems, the cublas library is not installed in the same directory as
++    the other CUDA libraries but rather in a special extras/CUBLAS directory.
++
++    Args:
++      repository_ctx: The repository context.
++      cuda_config: The cuda configuration as returned by _get_cuda_config.
++
++    Returns:
++      Returns a struct with the following fields:
++           file_name: The basename of the library found on the system.
++           path: The full path to the library.
++    """
++    file_name = _lib_name(
++        "cublas",
++        cuda_config.cpu_value,
++        cuda_config.cuda_major_version,
++    )
++    cuda_toolkit_path = cuda_config.cuda_toolkit_path
++    for relative_path in CUBLAS_LIB_PATHS:
++        path = repository_ctx.path(
++            "%s%s" % ( relative_path, file_name),
++        )
++        if path.exists:
++            return struct(file_name = file_name, path = str(path.realpath))
++
++    auto_configure_fail("Cannot find cublas library %s" % file_name)
++
++
+ 
+ def _find_libs(repository_ctx, cuda_config):
+   """Returns the CUDA and cuDNN libraries on the system.
+@@ -836,21 +877,14 @@ def _find_libs(repository_ctx, cuda_config):
+               cuda_config.cuda_version,
+               static=True,
+           ),
+-      "cublas":
+-          _find_cuda_lib(
+-              "cublas",
+-              repository_ctx,
+-              cpu_value,
+-              cuda_config.cuda_toolkit_path,
+-              cuda_config.cuda_version,
+-          ),
++      "cublas": _find_cublas_lib(repository_ctx, cuda_config),
+       "cusolver":
+           _find_cuda_lib(
+               "cusolver",
+               repository_ctx,
+               cpu_value,
+               cuda_config.cuda_toolkit_path,
+-              cuda_config.cuda_version,
++              cuda_config.cuda_major_version,
+           ),
+       "curand":
+           _find_cuda_lib(
+@@ -858,7 +892,7 @@ def _find_libs(repository_ctx, cuda_config):
+               repository_ctx,
+               cpu_value,
+               cuda_config.cuda_toolkit_path,
+-              cuda_config.cuda_version,
++              cuda_config.cuda_major_version,
+           ),
+       "cufft":
+           _find_cuda_lib(
+@@ -866,7 +900,7 @@ def _find_libs(repository_ctx, cuda_config):
+               repository_ctx,
+               cpu_value,
+               cuda_config.cuda_toolkit_path,
+-              cuda_config.cuda_version,
++              cuda_config.cuda_major_version,
+           ),
+       "cudnn":
+           _find_cuda_lib(
+@@ -962,6 +996,8 @@ def _get_cuda_config(repository_ctx):
+   cpu_value = get_cpu_value(repository_ctx)
+   toolkit_path = cuda_toolkit_path(repository_ctx)
+   cuda_version = _cuda_version(repository_ctx, toolkit_path, cpu_value)
++  version_parts = cuda_version.split(".")
++  cuda_major_version = version_parts[0]
+   cudnn_install_basedir = _cudnn_install_basedir(repository_ctx)
+   cudnn_version = _cudnn_version(repository_ctx, cudnn_install_basedir,
+                                  cpu_value)
+@@ -969,6 +1005,7 @@ def _get_cuda_config(repository_ctx):
+       cuda_toolkit_path=toolkit_path,
+       cudnn_install_basedir=cudnn_install_basedir,
+       cuda_version=cuda_version,
++      cuda_major_version=cuda_major_version,
+       cudnn_version=cudnn_version,
+       compute_capabilities=compute_capabilities(repository_ctx),
+       cpu_value=cpu_value,

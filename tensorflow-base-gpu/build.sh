@@ -16,9 +16,9 @@ export USE_DEFAULT_PYTHON_LIB_PATH=1
 # additional settings
 # do not build with MKL support
 export TF_NEED_MKL=0
-export CC_OPT_FLAGS="-march=nocona -mtune=haswell"
+#export CC_OPT_FLAGS="-march=nocona -mtune=haswell"
 export TF_NEED_IGNITE=1
-export TF_ENABLE_XLA=1
+export TF_ENABLE_XLA=0
 export TF_NEED_OPENCL=0
 export TF_NEED_OPENCL_SYCL=0
 export TF_NEED_ROCM=0
@@ -28,8 +28,10 @@ export TF_SET_ANDROID_WORKSPACE=0
 
 # CUDA details
 export TF_NEED_CUDA=1
-export TF_CUDA_VERSION="${cudatoolkit}"
-export TF_CUDNN_VERSION="${cudnn}"
+#export TF_CUDA_VERSION="${cudatoolkit}"
+export TF_CUDA_VERSION="10.1"
+export CUDNN_INSTALL_PATH="/usr/lib64"
+export TF_CUDNN_VERSION="7"
 if [ ${cudnn} == "6.0" ]; then
     export TF_CUDNN_VERSION="6"
 fi
@@ -40,7 +42,7 @@ export TF_NEED_TENSORRT=0
 # by CUDA 7.5 and used in the devel-gpu tensorflow docker image:
 # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/tools/docker/Dockerfile.devel-gpu
 # 6.0 and 6.1 should be added with CUDA version 8.0
-export TF_CUDA_COMPUTE_CAPABILITIES="3.0,3.5,5.2"
+export TF_CUDA_COMPUTE_CAPABILITIES="5.2,7.0"
 if [ ${cudatoolkit} == "8.0" ]; then
     export TF_CUDA_COMPUTE_CAPABILITIES="3.0,3.5,5.2,6.0,6.1"
 fi
@@ -50,12 +52,12 @@ fi
 if [ ${cudatoolkit} == "9.2" ]; then
     export TF_CUDA_COMPUTE_CAPABILITIES="3.0,3.5,5.2,6.0,6.1,7.0"
 fi
-export TF_NCCL_VERSION="1.3"
+export TF_NCCL_VERSION="https://github.com/nvidia/nccl"
 export GCC_HOST_COMPILER_PATH="${CC}"
 # Use system paths here rather than $PREFIX to allow Bazel to find the correct
 # libraries.  RPATH is adjusted post build to link to the DSOs in $PREFIX
 export CUDA_TOOLKIT_PATH="/usr/local/cuda"
-export CUDNN_INSTALL_PATH="/usr/local/cuda/"
+#export CUDNN_INSTALL_PATH="/usr/local/cuda/"
 
 # libcuda.so.1 needs to be symlinked to libcuda.so
 # ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
@@ -63,7 +65,8 @@ export CUDNN_INSTALL_PATH="/usr/local/cuda/"
 # add the stubs directory to LD_LIBRARY_PATH so libcuda.so.1 can be found
 export LD_LIBRARY_PATH="/usr/local/cuda/lib64/stubs/:${LD_LIBRARY_PATH}"
 
-./configure
+#./configure
+$RECIPE_DIR/set_tensorflow_bazelrc.sh $SRC_DIR/tensorflow
 
 # build using bazel
 # for debugging the following lines may be helpful
@@ -71,9 +74,8 @@ export LD_LIBRARY_PATH="/usr/local/cuda/lib64/stubs/:${LD_LIBRARY_PATH}"
 #   --subcommands \
 # jobs can be used to limit parallel builds and reduce resource needs
 #    --jobs=20             \
-bazel ${BAZEL_OPTS} build \
-    --copt=-march=nocona \
-    --copt=-mtune=haswell \
+bazel ${BAZEL_OPTS} \
+    --bazelrc=$SRC_DIR/tensorflow/tensorflow.bazelrc build\
     --copt=-ftree-vectorize \
     --copt=-fPIC \
     --copt=-fstack-protector-strong \
