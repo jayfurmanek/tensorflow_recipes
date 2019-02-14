@@ -29,7 +29,7 @@ export TF_SET_ANDROID_WORKSPACE=0
 # CUDA details
 export TF_NEED_CUDA=1
 #export TF_CUDA_VERSION="${cudatoolkit}"
-export TF_CUDA_VERSION="10.1"
+export TF_CUDA_VERSION="10.0"
 export CUDNN_INSTALL_PATH="/usr/lib64"
 export TF_CUDNN_VERSION="7"
 if [ ${cudnn} == "6.0" ]; then

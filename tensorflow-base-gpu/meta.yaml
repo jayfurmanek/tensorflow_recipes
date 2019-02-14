@@ -17,8 +17,6 @@ source:
     - 0011-do-not-include-B-usr-bin-flag.patch                        # [linux]
     - 0012-add-additional-cuda-rpaths.patch                           # [linux]
     - 0013-Add-patch-for-eigen-cuda-19198.patch                       # [win]
-    # Cuda 10.1 patches
-    - 0015-custom-changes.patch
 
 build:
   number: 0
